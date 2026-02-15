@@ -6,8 +6,8 @@
   </div>
 
   <div>
-<div id="task" v-for="(task,index) in items" :key="index" class="task" :class="{completed: task.completed}">
-      <span id="taskText" >{{ task.text }}</span>
+<div id="task" v-for="(task,index) in items" :key="index" class="task">
+      <span id="taskText" :class="{completed: task.completed}">{{ task.text }}</span>
       <span id="editTask">
         <button id="completeButton" class="taskButton" v-on:click="completeTask(index)">Complete</button>
         <button id="deleteButton" class="taskButton" v-on:click="removeTask(index)">Remove</button>
@@ -46,8 +46,7 @@ export default {
       console.log('Task Added: ' + inputedTask);
       },
       completeTask(index){
-        this.completeTask=this.items[index]
-        this.completeTask.text.color='gray'
+        this.items[index].completed = !this.items[index].completed
       },
       removeTask(index){
         console.log('Task Removed: ' + this.items[index]);
@@ -133,10 +132,6 @@ Button:hover {
 #deleteButton {
   background-color: #ef4444;
 }
-.task.completed{
-  filter: blur(4px);
-  opacity: 0.6;
-}
 label {
   font-size: 1.2rem;
   margin-left: 10px;
@@ -152,9 +147,14 @@ label {
   border: none;
   border-radius: 8px;
   }
-  #taskText {
+#taskText {
     
     font-size: 1.1rem;
     color: #1e293b;
+  }
+  #taskText.completed {
+    filter: blur(0.5px);
+    opacity: 0.7;
+    color: #4ade80;
   }
 </style>

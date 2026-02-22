@@ -43,8 +43,11 @@
           id="dueDate"
           v-model="form.dueDate"
           type="date"
+          :min="minDueDate"
           required
+          :aria-describedby="dueDateError ? 'dueDate-error' : undefined"
         />
+        <span v-if="dueDateError" id="dueDate-error" class="errorText" role="alert">{{ dueDateError }}</span>
       </div>
 
       <div class="formGroup">
@@ -83,15 +86,26 @@ export default {
         dueDate: '',
         dueTime: '',
         description: ''
-      }
+      },
+      dueDateError: ''
+    }
+  },
+  computed: {
+    minDueDate() {
+      return new Date().toISOString().slice(0, 10)
     }
   },
   methods: {
     addTask() {
-      if (this.form.name.trim() && this.form.type && this.form.urgency && this.form.dueDate) {
-        this.$emit('add-task', { ...this.form })
-        this.resetForm()
+      this.dueDateError = ''
+      if (!this.form.name.trim() || !this.form.type || !this.form.urgency || !this.form.dueDate) return
+      const today = new Date().toISOString().slice(0, 10)
+      if (this.form.dueDate < today) {
+        this.dueDateError = 'Due date cannot be in the past.'
+        return
       }
+      this.$emit('add-task', { ...this.form })
+      this.resetForm()
     },
     resetForm() {
       this.form = {
@@ -102,6 +116,7 @@ export default {
         dueTime: '',
         description: ''
       }
+      this.dueDateError = ''
     }
   },
   emits: ['add-task']
@@ -110,7 +125,7 @@ export default {
 
 <style scoped>
 .taskForm {
-  background: white;
+  background: var(--card-bg, white);
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -145,7 +160,8 @@ textarea {
   border: 2px solid #bbf7d0;
   border-radius: 8px;
   font-size: 0.95rem;
-  background: white;
+  background: var(--input-bg, white);
+  color: var(--text, #1e293b);
   transition: all 0.3s;
   font-family: inherit;
 }
@@ -155,9 +171,22 @@ input[type="date"]:focus,
 input[type="time"]:focus,
 select:focus,
 textarea:focus {
-  outline: none;
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+input[type="text"]:focus-visible,
+input[type="date"]:focus-visible,
+input[type="time"]:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
+.addButton:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
 }
 
 textarea {
@@ -186,5 +215,12 @@ textarea {
 
 .addButton:active {
   transform: translateY(0);
+}
+
+.errorText {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #b91c1c;
 }
 </style>

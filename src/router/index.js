@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import TaskList from '../views/TaskList.vue'
 import Home from '../views/Home.vue'
+import DashboardView from '../views/DashboardView.vue'
+import ProfileView from '../views/ProfileView.vue'
+import NotFound from '../views/NotFound.vue'
+import { useAuthStore } from '../stores/auth'
 
 const routes = [
   {
@@ -10,8 +13,24 @@ const routes = [
   },
   {
     path: '/tasks',
-    name: 'Tasks',
-    component: TaskList
+    redirect: '/dashboard'
+  },
+  {
+    path: '/dashboard/:filter?',
+    name: 'Dashboard',
+    component: DashboardView,
+    props: true
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: ProfileView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound
   }
 ]
 
@@ -19,5 +38,19 @@ const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
 })
+
+export function setupRouterGuard(pinia) {
+  router.beforeEach((to, _from, next) => {
+    const requiresAuth = to.matched.some(r => r.meta.requiresAuth)
+    if (requiresAuth && pinia) {
+      const auth = useAuthStore(pinia)
+      if (!auth.isAuthenticated) {
+        next({ name: 'Home' })
+        return
+      }
+    }
+    next()
+  })
+}
 
 export default router

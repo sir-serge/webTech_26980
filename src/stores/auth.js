@@ -33,11 +33,21 @@ function saveToStorage(user) {
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(loadFromStorage())
-  const isAuthenticated = ref(true) // For demo; set false when implementing real JWT login
+  const isAuthenticated = ref(false)
 
   watch(user, (val) => {
     saveToStorage(val)
   }, { deep: true, immediate: true })
+
+  function login(payload = {}) {
+    isAuthenticated.value = true
+    user.value = { ...user.value, ...payload }
+  }
+
+  function logout() {
+    isAuthenticated.value = false
+    user.value = { ...defaultUser }
+  }
 
   function updateProfile(updates) {
     user.value = { ...user.value, ...updates }
@@ -54,6 +64,8 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     isAuthenticated,
+    login,
+    logout,
     updateProfile,
     setBio,
     setAvatar

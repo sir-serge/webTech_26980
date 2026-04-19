@@ -1,63 +1,16 @@
 <template>
-  <form @submit.prevent="addTask" class="taskForm">
+  <form @submit.prevent="submitTask" class="taskForm" novalidate>
     <div class="formGroup">
-      <label for="taskName">Task Name *</label>
+      <label for="taskTitle">Task Title *</label>
       <input
-        id="taskName"
-        v-model="form.name"
+        id="taskTitle"
+        v-model="form.title"
         type="text"
-        placeholder="Enter task name..."
+        placeholder="Enter task title..."
         required
+        autocomplete="off"
       />
-    </div>
-
-    <div class="formRow">
-      <div class="formGroup">
-        <label for="taskType">Task Type *</label>
-        <select id="taskType" v-model="form.type" required>
-          <option value="">Select type</option>
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Shopping">Shopping</option>
-          <option value="Health">Health</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-
-      <div class="formGroup">
-        <label for="taskUrgency">Urgency *</label>
-        <select id="taskUrgency" v-model="form.urgency" required>
-          <option value="">Select urgency</option>
-          <option value="Low">Low</option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-          <option value="Critical">Critical</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="formRow">
-      <div class="formGroup">
-        <label for="dueDate">Due Date *</label>
-        <input
-          id="dueDate"
-          v-model="form.dueDate"
-          type="date"
-          :min="minDueDate"
-          required
-          :aria-describedby="dueDateError ? 'dueDate-error' : undefined"
-        />
-        <span v-if="dueDateError" id="dueDate-error" class="errorText" role="alert">{{ dueDateError }}</span>
-      </div>
-
-      <div class="formGroup">
-        <label for="dueTime">Due Time</label>
-        <input
-          id="dueTime"
-          v-model="form.dueTime"
-          type="time"
-        />
-      </div>
+      <span v-if="errors.title" class="errorText" role="alert">{{ errors.title }}</span>
     </div>
 
     <div class="formGroup">
@@ -67,131 +20,148 @@
         v-model="form.description"
         placeholder="Add task details (optional)..."
         rows="3"
-      ></textarea>
+      />
     </div>
 
-    <button type="submit" class="addButton">Add Task</button>
+    <div class="formRow">
+      <div class="formGroup">
+        <label for="taskPriority">Priority *</label>
+        <select id="taskPriority" v-model="form.priority" required>
+          <option value="">Select priority</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+        </select>
+        <span v-if="errors.priority" class="errorText" role="alert">{{ errors.priority }}</span>
+      </div>
+
+      <div class="formGroup">
+        <label for="taskStatus">Status *</label>
+        <select id="taskStatus" v-model="form.status" required>
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN_PROGRESS</option>
+          <option value="DONE">DONE</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="submit" class="addButton" :disabled="submitting">
+      {{ submitting ? 'Adding...' : 'Add Task' }}
+    </button>
   </form>
 </template>
 
 <script>
 export default {
   name: 'TaskInput',
+  emits: ['add-task'],
   data() {
     return {
       form: {
-        name: '',
-        type: '',
-        urgency: '',
-        dueDate: '',
-        dueTime: '',
-        description: ''
+        title: '',
+        description: '',
+        priority: '',
+        status: 'TODO'
       },
-      dueDateError: ''
-    }
-  },
-  computed: {
-    minDueDate() {
-      return new Date().toISOString().slice(0, 10)
+      errors: {},
+      submitting: false
     }
   },
   methods: {
-    addTask() {
-      this.dueDateError = ''
-      if (!this.form.name.trim() || !this.form.type || !this.form.urgency || !this.form.dueDate) return
-      const today = new Date().toISOString().slice(0, 10)
-      if (this.form.dueDate < today) {
-        this.dueDateError = 'Due date cannot be in the past.'
-        return
+    validate() {
+      const e = {}
+      if (!this.form.title.trim())  e.title    = 'Title is required.'
+      if (!this.form.priority)      e.priority = 'Priority is required.'
+      this.errors = e
+      return Object.keys(e).length === 0
+    },
+    async submitTask() {
+      if (!this.validate()) return
+      this.submitting = true
+      try {
+        await this.$emit('add-task', {
+          title:       this.form.title.trim(),
+          description: this.form.description.trim(),
+          priority:    this.form.priority,
+          status:      this.form.status
+        })
+        this.resetForm()
+      } finally {
+        this.submitting = false
       }
-      this.$emit('add-task', { ...this.form })
-      this.resetForm()
     },
     resetForm() {
-      this.form = {
-        name: '',
-        type: '',
-        urgency: '',
-        dueDate: '',
-        dueTime: '',
-        description: ''
-      }
-      this.dueDateError = ''
+      this.form   = { title: '', description: '', priority: '', status: 'TODO' }
+      this.errors = {}
     }
-  },
-  emits: ['add-task']
+  }
 }
 </script>
 
 <style scoped>
 .taskForm {
   background: var(--card-bg, white);
-  padding: 25px;
+  padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 28px;
+  border: 2px solid var(--card-border, #e2e8f0);
+  transition: border-color 0.2s;
+}
+
+.taskForm:focus-within {
+  border-color: var(--primary, #2647e8);
 }
 
 .formGroup {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
 }
 
 .formRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
 label {
   font-weight: 600;
-  color: #2647e8;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
+  color: var(--primary, #2647e8);
+  margin-bottom: 6px;
+  font-size: 0.9rem;
 }
 
 input[type="text"],
-input[type="date"],
-input[type="time"],
 select,
 textarea {
   padding: 10px 12px;
-  border: 2px solid #bbf7d0;
+  border: 2px solid var(--card-border, #e2e8f0);
   border-radius: 8px;
   font-size: 0.95rem;
   background: var(--input-bg, white);
   color: var(--text, #1e293b);
-  transition: all 0.3s;
   font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 input[type="text"]:focus,
-input[type="date"]:focus,
-input[type="time"]:focus,
 select:focus,
 textarea:focus {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-}
-
-input[type="text"]:focus-visible,
-input[type="date"]:focus-visible,
-input[type="time"]:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid #7c3aed;
-  outline-offset: 2px;
-}
-
-.addButton:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
+  border-color: var(--primary, #2647e8);
+  box-shadow: 0 0 0 3px rgba(38, 71, 232, 0.12);
+  outline: none;
 }
 
 textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 72px;
+}
+
+.errorText {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #b91c1c;
 }
 
 .addButton {
@@ -202,25 +172,24 @@ textarea {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  background-color: #7c3aed;
+  background: var(--primary, #2647e8);
   color: white;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
-.addButton:hover {
-  background-color: #6d28d9;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+.addButton:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(38, 71, 232, 0.25);
 }
 
-.addButton:active {
-  transform: translateY(0);
+.addButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.errorText {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.9rem;
-  color: #b91c1c;
+.addButton:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
 }
 </style>

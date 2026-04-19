@@ -1,37 +1,34 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
+import Home          from '../views/Home.vue'
 import DashboardView from '../views/DashboardView.vue'
-import ProfileView from '../views/ProfileView.vue'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
-import NotFound from '../views/NotFound.vue'
+import AddTaskView   from '../views/AddTaskView.vue'
+import TasksView     from '../views/TasksView.vue'
+import ProfileView   from '../views/ProfileView.vue'
+import LoginView     from '../views/LoginView.vue'
+import RegisterView  from '../views/RegisterView.vue'
+import NotFound      from '../views/NotFound.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
+  { path: '/',          name: 'Home',      component: Home },
+  { path: '/login',     name: 'Login',     component: LoginView },
+  { path: '/register',  name: 'Register',  component: RegisterView },
   {
-    path: '/',
-    name: 'Home',
-    component: Home
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: DashboardView,
+    meta: { requiresAuth: true }
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: LoginView
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: RegisterView
+    path: '/add-task',
+    name: 'AddTask',
+    component: AddTaskView,
+    meta: { requiresAuth: true }
   },
   {
     path: '/tasks',
-    redirect: '/dashboard'
-  },
-  {
-    path: '/dashboard/:filter?',
-    name: 'Dashboard',
-    component: DashboardView,
-    props: true,
+    name: 'Tasks',
+    component: TasksView,
     meta: { requiresAuth: true }
   },
   {
@@ -40,11 +37,7 @@ const routes = [
     component: ProfileView,
     meta: { requiresAuth: true }
   },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: NotFound
-  }
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound }
 ]
 
 const router = createRouter({

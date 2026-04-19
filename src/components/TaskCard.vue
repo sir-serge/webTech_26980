@@ -1,52 +1,41 @@
 <template>
   <article
     class="taskCard"
-    :class="{ completed: task.completed }"
-    :style="staggerStyle"
+    :class="statusClass"
     role="listitem"
   >
     <div class="taskHeader">
-      <div class="taskTitle">
-        <label class="checkboxWrap">
-          <input
-            type="checkbox"
-            :checked="task.completed"
-            :aria-label="`Mark ${task.name} as ${task.completed ? 'incomplete' : 'complete'}`"
-            class="checkbox"
-            @change="$emit('complete')"
-          />
-          <span class="checkmark" aria-hidden="true" />
-        </label>
-        <span class="taskName" :class="{ completed: task.completed }">
-          {{ task.name }}
-        </span>
-        <span class="urgencyBadge" :class="urgencyClass">
-          {{ task.urgency }}
-        </span>
+      <div class="taskMeta">
+        <span class="priorityBadge" :class="priorityClass">{{ task.priority }}</span>
+        <span class="statusBadge" :class="statusBadgeClass">{{ statusLabel }}</span>
       </div>
-      <span class="taskType">{{ task.type }}</span>
     </div>
 
-    <div class="taskDetails">
-      <div class="detailItem">
-        <span class="label">Due Date:</span>
-        <span class="value">{{ formatDate(task.dueDate) }}</span>
-        <span v-if="task.dueTime" class="value">{{ task.dueTime }}</span>
-      </div>
-      <div v-if="task.description" class="detailItem">
-        <span class="label">Description:</span>
-        <span class="value">{{ task.description }}</span>
-      </div>
-    </div>
+    <h3 class="taskTitle">{{ task.title }}</h3>
+
+    <p v-if="task.description" class="taskDescription">{{ task.description }}</p>
 
     <div class="taskActions">
+      <select
+        class="statusSelect"
+        :value="task.status"
+        :aria-label="`Change status of ${task.title}`"
+        @change="onStatusChange"
+        :disabled="updating"
+      >
+        <option value="TODO">TODO</option>
+        <option value="IN_PROGRESS">IN_PROGRESS</option>
+        <option value="DONE">DONE</option>
+      </select>
+
       <button
         type="button"
         class="deleteButton"
-        aria-label="Delete task"
+        :aria-label="`Delete task: ${task.title}`"
+        :disabled="deleting"
         @click="$emit('delete')"
       >
-        Delete
+        {{ deleting ? '...' : 'Delete' }}
       </button>
     </div>
   </article>
@@ -56,33 +45,31 @@
 export default {
   name: 'TaskCard',
   props: {
-    task: {
-      type: Object,
-      required: true
-    },
-    staggerIndex: {
-      type: Number,
-      default: 0
-    }
+    task: { type: Object, required: true },
+    updating: { type: Boolean, default: false },
+    deleting: { type: Boolean, default: false }
   },
+  emits: ['update-status', 'delete'],
   computed: {
-    urgencyClass() {
-      return `urgency-${(this.task.urgency || '').toLowerCase()}`
+    statusClass() {
+      return `card-${(this.task.status || 'TODO').toLowerCase()}`
     },
-    staggerStyle() {
-      return {
-        animationDelay: `${this.staggerIndex * 0.06}s`
-      }
+    statusBadgeClass() {
+      return `status-${(this.task.status || 'TODO').toLowerCase()}`
+    },
+    priorityClass() {
+      return `priority-${(this.task.priority || 'LOW').toLowerCase()}`
+    },
+    statusLabel() {
+      const map = { TODO: 'To Do', IN_PROGRESS: 'In Progress', DONE: 'Done' }
+      return map[this.task.status] || this.task.status
     }
   },
   methods: {
-    formatDate(dateString) {
-      if (!dateString) return '—'
-      const options = { year: 'numeric', month: 'short', day: 'numeric' }
-      return new Date(dateString).toLocaleDateString(undefined, options)
+    onStatusChange(e) {
+      this.$emit('update-status', e.target.value)
     }
-  },
-  emits: ['complete', 'delete']
+  }
 }
 </script>
 
@@ -91,188 +78,136 @@ export default {
   background: var(--card-bg, white);
   border: 2px solid var(--card-border, #e2e8f0);
   border-radius: 12px;
-  padding: 16px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.3s;
-  animation: cardIn 0.4s ease-out backwards;
+  padding: 18px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: cardIn 0.35s ease-out backwards;
+  border-left-width: 4px;
 }
 
 .taskCard:hover {
-  border-color: var(--primary, #2647e8);
-  box-shadow: 0 8px 24px rgba(38, 71, 232, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
-.taskCard.completed {
-  background-color: var(--completed-bg, #f0fdf4);
-  border-color: var(--completed-border, #bbf7d0);
-}
-
-.taskCard.completed .checkmark {
-  background: #22c55e;
-  border-color: #22c55e;
-}
-
-.taskCard.completed .checkmark::after {
-  opacity: 1;
-}
+/* Left-border accent by status */
+.card-todo        { border-left-color: #64748b; }
+.card-in_progress { border-left-color: #f59e0b; }
+.card-done        { border-left-color: #22c55e; background-color: var(--detail-bg, #f0fdf4); }
 
 @keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .taskHeader {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 
-.taskTitle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-}
-
-.checkboxWrap {
-  position: relative;
-  display: inline-flex;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.checkbox {
-  position: absolute;
-  opacity: 0;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-  margin: 0;
-}
-
-.checkmark {
-  width: 22px;
-  height: 22px;
-  border: 2px solid var(--card-border, #cbd5e1);
-  border-radius: 6px;
-  background: var(--card-bg, white);
-  transition: all 0.25s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.checkmark::after {
-  content: '';
-  width: 6px;
-  height: 11px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg) scale(0.8);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  margin-bottom: 3px;
-}
-
-.checkbox:focus-visible + .checkmark {
-  outline: 2px solid var(--primary, #2647e8);
-  outline-offset: 2px;
-}
-
-.checkbox:checked + .checkmark {
-  background: #22c55e;
-  border-color: #22c55e;
-}
-
-.checkbox:checked + .checkmark::after {
-  opacity: 1;
-}
-
-.taskName {
-  font-size: 1.1rem;
-  color: var(--text, #1e293b);
-  font-weight: 600;
-}
-
-.taskName.completed {
-  color: #4ade80;
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-.urgencyBadge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: white;
-}
-
-.urgency-low { background-color: #10b981; }
-.urgency-medium { background-color: #f59e0b; }
-.urgency-high { background-color: #ef4444; }
-.urgency-critical { background-color: #8b5cf6; }
-
-.taskType {
-  background-color: var(--badge-bg, #dbeafe);
-  color: var(--primary, #2647e8);
-  padding: 4px 12px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.taskDetails {
-  background-color: var(--detail-bg, #f8fafc);
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  font-size: 0.9rem;
-}
-
-.detailItem {
+.taskMeta {
   display: flex;
   gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 8px;
+  align-items: center;
 }
 
-.detailItem:last-child { margin-bottom: 0; }
+/* Priority badges */
+.priorityBadge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.03em;
+}
+.priority-low    { background: #10b981; }
+.priority-medium { background: #f59e0b; }
+.priority-high   { background: #ef4444; }
 
-.label {
+/* Status badges */
+.statusBadge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--muted, #64748b);
-  min-width: 100px;
+}
+.status-todo        { background: #e2e8f0; color: #475569; }
+.status-in_progress { background: #fef3c7; color: #92400e; }
+.status-done        { background: #dcfce7; color: #15803d; }
+
+.taskTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
-.value { color: var(--text, #1e293b); }
+.card-done .taskTitle {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.taskDescription {
+  font-size: 0.9rem;
+  color: var(--muted, #64748b);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
 
 .taskActions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
   justify-content: flex-end;
 }
 
-.deleteButton {
-  padding: 6px 16px;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 6px;
+.statusSelect {
+  padding: 7px 10px;
+  border: 2px solid var(--card-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: var(--input-bg, white);
+  color: var(--text, #1e293b);
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
+  transition: border-color 0.2s;
 }
 
-.deleteButton:hover {
-  background-color: #dc2626;
-  transform: scale(1.05);
+.statusSelect:focus {
+  outline: none;
+  border-color: var(--primary, #2647e8);
+}
+
+.statusSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deleteButton {
+  padding: 7px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: #dc2626;
+  transform: scale(1.04);
+}
+
+.deleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deleteButton:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 2px;
 }
 </style>

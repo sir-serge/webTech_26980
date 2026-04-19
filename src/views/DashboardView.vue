@@ -1,430 +1,590 @@
 <template>
-  <div class="taskListContainer">
-    <h2 class="heading">My Tasks</h2>
-
-    <div class="filterTabs">
-      <router-link to="/dashboard" class="tab" active-class="tabActive" exact-active-class="tabActive">
-        All
-      </router-link>
-      <router-link to="/dashboard/todo" class="tab" active-class="tabActive">
-        To Do
-      </router-link>
-      <router-link to="/dashboard/completed" class="tab" active-class="tabActive">
-        Completed
-      </router-link>
-    </div>
-
-    <div class="searchWrap">
-      <label for="taskSearch" class="searchLabel">Search tasks</label>
-      <input
-        id="taskSearch"
-        v-model="searchQuery"
-        type="search"
-        placeholder="Type to filter by name or description..."
-        class="searchInput"
-        autocomplete="off"
-        aria-describedby="searchHint"
-      />
-      <span id="searchHint" class="searchHint">Press / to focus search</span>
-    </div>
-
-    <TaskInput @add-task="handleAddTask" />
-
-    <div v-if="filteredDisplayTasks.length === 0" class="emptyState">
-      <p>📋 {{ searchQuery ? 'No tasks match your search.' : `No tasks in this view. ${emptyMessage}` }}</p>
-    </div>
-
-    <div v-else class="tasksList">
-      <TransitionGroup name="task" tag="ul" class="taskListGroup">
-        <li
-          v-for="(task, index) in filteredDisplayTasks"
-          :key="taskKey(task, index)"
-          class="taskListItem"
-        >
-          <TaskCard
-            :task="task"
-            :stagger-index="index"
-            @complete="handleComplete(task)"
-            @delete="handleDelete(task)"
-          />
-        </li>
-      </TransitionGroup>
-    </div>
-
-    <div v-if="tasks.length > 0" class="taskStats">
-      <div class="progressWrap">
-        <div class="progressBar">
-          <div
-            class="progressFill"
-            :style="{ width: completionRate + '%' }"
-          />
-        </div>
-        <span class="progressLabel">{{ completionRate }}% complete</span>
+  <div class="dashContainer">
+    <!-- Greeting -->
+    <div class="greeting">
+      <div>
+        <h2 class="greetHeading">{{ greetingText }}, {{ displayName }} 👋</h2>
+        <p class="greetSub">Here's what's going on with your tasks today.</p>
       </div>
-      <div class="statGrid">
-        <div class="statCard">
-          <span class="statLabel">Total</span>
-          <span class="statValue">{{ tasks.length }}</span>
+      <router-link to="/add-task" class="quickAddBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Add Task
+      </router-link>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="loadingRow" aria-live="polite">
+      <span class="spinner" aria-hidden="true" /> Fetching tasks…
+    </div>
+
+    <!-- Stat cards -->
+    <div class="statGrid">
+      <div class="statCard total">
+        <div class="statIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </div>
-        <div class="statCard">
+        <div class="statInfo">
+          <span class="statNum">{{ tasks.length }}</span>
+          <span class="statLabel">Total Tasks</span>
+        </div>
+      </div>
+
+      <div class="statCard todo">
+        <div class="statIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="statInfo">
+          <span class="statNum">{{ todoCount }}</span>
+          <span class="statLabel">To Do</span>
+        </div>
+      </div>
+
+      <div class="statCard inprogress">
+        <div class="statIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </div>
+        <div class="statInfo">
+          <span class="statNum">{{ inProgressCount }}</span>
+          <span class="statLabel">In Progress</span>
+        </div>
+      </div>
+
+      <div class="statCard done">
+        <div class="statIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+        </div>
+        <div class="statInfo">
+          <span class="statNum">{{ doneCount }}</span>
           <span class="statLabel">Done</span>
-          <span class="statValue">{{ completedCount }}</span>
-        </div>
-        <div class="statCard">
-          <span class="statLabel">Left</span>
-          <span class="statValue">{{ tasks.length - completedCount }}</span>
         </div>
       </div>
     </div>
 
-    <div v-if="hasCompletedTasks" class="clearSection">
-      <button type="button" class="clearButton" @click="handleClearCompleted">
-        Clear completed tasks
-      </button>
+    <!-- Progress -->
+    <div v-if="tasks.length > 0" class="progressCard">
+      <div class="progressHeader">
+        <span class="progressTitle">Completion Progress</span>
+        <span class="progressPct">{{ completionRate }}%</span>
+      </div>
+      <div class="progressBar" role="progressbar" :aria-valuenow="completionRate" aria-valuemin="0" aria-valuemax="100">
+        <div class="progressFill" :style="{ width: completionRate + '%' }" />
+      </div>
+      <div class="progressHints">
+        <span>{{ doneCount }} done</span>
+        <span>{{ tasks.length - doneCount }} remaining</span>
+      </div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="bottomRow">
+      <!-- Priority breakdown -->
+      <div v-if="tasks.length > 0" class="priorityCard">
+        <h3 class="cardHeading">Priority Breakdown</h3>
+        <div class="priorityRows">
+          <div class="priorityRow" v-for="p in priorities" :key="p.key">
+            <span class="priorityLabel" :class="`pri-${p.key.toLowerCase()}`">{{ p.key }}</span>
+            <div class="priorityBarBg">
+              <div class="priorityBarFill" :class="`pfill-${p.key.toLowerCase()}`" :style="{ width: pctOf(p.count) + '%' }" />
+            </div>
+            <span class="priorityCnt">{{ p.count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent tasks -->
+      <div class="recentCard">
+        <div class="cardHeadingRow">
+          <h3 class="cardHeading">Recent Tasks</h3>
+          <router-link to="/tasks" class="seeAll">See all →</router-link>
+        </div>
+        <div v-if="tasks.length === 0" class="noTasks">
+          No tasks yet.
+          <router-link to="/add-task" class="inlineLink">Add your first task →</router-link>
+        </div>
+        <ul v-else class="recentList">
+          <li v-for="task in recentTasks" :key="task.id" class="recentItem">
+            <span class="recentDot" :class="`dot-${(task.status || 'TODO').toLowerCase()}`" aria-hidden="true" />
+            <span class="recentTitle">{{ task.title }}</span>
+            <span class="recentBadge" :class="`pri-${(task.priority || 'LOW').toLowerCase()}`">{{ task.priority }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="quickActions">
+      <router-link to="/add-task" class="actionBtn primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Add New Task
+      </router-link>
+      <router-link to="/tasks" class="actionBtn secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        View All Tasks
+      </router-link>
     </div>
   </div>
 </template>
 
 <script>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useTasksStore } from '../stores/tasks'
-import { useToastStore } from '../stores/toast'
-import TaskInput from '../components/TaskInput.vue'
-import TaskCard from '../components/TaskCard.vue'
+import { useAuthStore } from '../stores/auth'
 
 export default {
   name: 'DashboardView',
-  components: { TaskInput, TaskCard },
   setup() {
-    const route = useRoute()
     const store = useTasksStore()
-    const toast = useToastStore()
-    const searchQuery = ref('')
+    const auth  = useAuthStore()
 
-    const filter = computed(() => route.params.filter || 'all')
-    const tasks = computed(() => store.tasks)
-    const completedCount = computed(() => store.completedCount)
-    const hasCompletedTasks = computed(() => store.hasCompletedTasks)
+    const { tasks, loading } = storeToRefs(store)
+    const { user }           = storeToRefs(auth)
 
-    const displayTasks = computed(() => {
-      if (filter.value === 'completed') return store.completedTasks
-      if (filter.value === 'todo') return store.todoTasks
-      return store.tasks
+    const displayName = computed(() => user.value.displayName || 'there')
+
+    const greetingText = computed(() => {
+      const h = new Date().getHours()
+      if (h < 12) return 'Good morning'
+      if (h < 18) return 'Good afternoon'
+      return 'Good evening'
     })
 
-    const filteredDisplayTasks = computed(() => {
-      const q = (searchQuery.value || '').trim().toLowerCase()
-      if (!q) return displayTasks.value
-      return displayTasks.value.filter(
-        t =>
-          (t.name && t.name.toLowerCase().includes(q)) ||
-          (t.description && t.description.toLowerCase().includes(q))
-      )
-    })
+    const todoCount       = computed(() => store.todoTasks.length)
+    const inProgressCount = computed(() => store.inProgressTasks.length)
+    const doneCount       = computed(() => store.doneTasks.length)
 
     const completionRate = computed(() => {
       const total = tasks.value.length
-      return total === 0 ? 0 : Math.round((completedCount.value / total) * 100)
+      return total === 0 ? 0 : Math.round((doneCount.value / total) * 100)
     })
 
-    const emptyMessage = computed(() => {
-      if (filter.value === 'completed') return 'Complete some tasks to see them here.'
-      if (filter.value === 'todo') return 'Add a task or mark some as incomplete.'
-      return 'Add one to get started!'
+    const priorities = computed(() => {
+      const low  = tasks.value.filter(t => t.priority === 'LOW').length
+      const med  = tasks.value.filter(t => t.priority === 'MEDIUM').length
+      const high = tasks.value.filter(t => t.priority === 'HIGH').length
+      return [
+        { key: 'HIGH',   count: high },
+        { key: 'MEDIUM', count: med  },
+        { key: 'LOW',    count: low  }
+      ]
     })
 
-    function taskKey(task, index) {
-      return task.createdAt ? `${task.createdAt}-${index}` : `task-${index}`
+    function pctOf(count) {
+      return tasks.value.length === 0 ? 0 : Math.round((count / tasks.value.length) * 100)
     }
 
-    function handleAddTask(taskData) {
-      store.addTask(taskData)
-      toast.success(`Added "${taskData.name}"`)
-    }
+    const recentTasks = computed(() => [...tasks.value].reverse().slice(0, 5))
 
-    function handleComplete(task) {
-      const idx = store.getIndex(task)
-      if (idx !== -1) {
-        store.toggleComplete(idx)
-        toast.success(task.completed ? 'Marked incomplete' : 'Task completed!')
-      }
-    }
-
-    function handleDelete(task) {
-      const name = task.name
-      const idx = store.getIndex(task)
-      if (idx !== -1) {
-        store.removeTask(idx)
-        toast.info(`Removed "${name}"`)
-      }
-    }
-
-    function handleClearCompleted() {
-      const count = store.completedCount
-      store.clearCompleted()
-      toast.info(`Cleared ${count} completed task${count !== 1 ? 's' : ''}`)
-    }
-
-    function onKey(e) {
-      if (e.key === '/' && document.activeElement?.id !== 'taskSearch') {
-        e.preventDefault()
-        document.getElementById('taskSearch')?.focus()
-      }
-    }
     onMounted(() => {
-      document.addEventListener('keydown', onKey)
-    })
-    onBeforeUnmount(() => {
-      document.removeEventListener('keydown', onKey)
+      if (tasks.value.length === 0) store.fetchTasks()
     })
 
     return {
-      searchQuery,
-      tasks,
-      completedCount,
-      hasCompletedTasks,
-      filteredDisplayTasks,
-      completionRate,
-      emptyMessage,
-      taskKey,
-      handleAddTask,
-      handleComplete,
-      handleDelete,
-      handleClearCompleted
+      tasks, loading, displayName, greetingText,
+      todoCount, inProgressCount, doneCount,
+      completionRate, priorities, pctOf, recentTasks
     }
   }
 }
 </script>
 
 <style scoped>
-.taskListContainer {
-  max-width: 900px;
+.dashContainer {
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 20px;
-}
-
-.heading {
-  font-size: 2rem;
-  color: var(--primary, #2647e8);
-  margin-bottom: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.filterTabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.tab {
-  padding: 10px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  color: var(--muted, #64748b);
-  background: var(--card-bg, #f8fafc);
-  transition: all 0.2s;
-}
-
-.tab:hover {
-  color: var(--primary, #2647e8);
-  background: var(--badge-bg, #dbeafe);
-  transform: translateY(-1px);
-}
-
-.tabActive {
-  color: white;
-  background: var(--primary, #2647e8);
-  transform: translateY(-1px);
-}
-
-.searchWrap {
-  margin-bottom: 20px;
-}
-
-.searchLabel {
-  display: block;
-  font-weight: 600;
-  color: var(--muted, #64748b);
-  font-size: 0.9rem;
-  margin-bottom: 6px;
-}
-
-.searchInput {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid var(--card-border, #e2e8f0);
-  border-radius: 10px;
-  font-size: 1rem;
-  background: var(--input-bg, white);
-  color: var(--text, #1e293b);
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.searchInput:focus {
-  border-color: var(--primary, #2647e8);
-  box-shadow: 0 0 0 3px rgba(38, 71, 232, 0.15);
-}
-
-.searchInput::placeholder {
-  color: var(--muted, #94a3b8);
-}
-
-.searchHint {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--muted, #64748b);
-  margin-top: 6px;
-}
-
-.tasksList {
-  margin-bottom: 24px;
-}
-
-.taskListGroup {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
+  gap: 24px;
+}
+
+/* Greeting */
+.greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
-  position: relative;
 }
 
-.taskListItem {
-  transition: transform 0.35s ease;
+.greetHeading {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  font-family: 'Segoe UI', sans-serif;
+  margin-bottom: 4px;
 }
 
-.emptyState {
-  text-align: center;
-  padding: 60px 40px;
-  background-color: var(--detail-bg, #f8fafc);
-  border-radius: 12px;
+.greetSub {
   color: var(--muted, #64748b);
-  font-size: 1.2rem;
-  border: 2px dashed var(--card-border, #cbd5e1);
+  font-size: 0.95rem;
 }
 
-/* List transitions */
-.task-enter-active {
-  transition: all 0.4s ease-out;
+.quickAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--primary, #2647e8);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(38, 71, 232, 0.25);
 }
 
-.task-leave-active {
-  transition: all 0.3s ease-in;
+.quickAddBtn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(38, 71, 232, 0.3);
+}
+
+.quickAddBtn svg { width: 18px; height: 18px; }
+
+/* Loading */
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted, #64748b);
+  font-size: 0.95rem;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid var(--card-border, #e2e8f0);
+  border-top-color: var(--primary, #2647e8);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Stat Cards */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  background: var(--card-bg, white);
+  border: 2px solid var(--card-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
   position: absolute;
-  width: 100%;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
 }
 
-.task-enter-from {
-  opacity: 0;
-  transform: translateX(-24px);
+.statCard.total::before  { background: #6366f1; }
+.statCard.todo::before   { background: #64748b; }
+.statCard.inprogress::before { background: #f59e0b; }
+.statCard.done::before   { background: #22c55e; }
+
+.statCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-.task-leave-to {
-  opacity: 0;
-  transform: translateX(24px);
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.task-move {
-  transition: transform 0.4s ease;
+.statCard.total    .statIcon { background: #ede9fe; color: #6366f1; }
+.statCard.todo     .statIcon { background: #f1f5f9; color: #64748b; }
+.statCard.inprogress .statIcon { background: #fef3c7; color: #d97706; }
+.statCard.done     .statIcon { background: #dcfce7; color: #16a34a; }
+
+.statIcon svg { width: 24px; height: 24px; }
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
 }
 
-.taskStats {
-  margin-top: 32px;
-  padding: 24px;
+.statNum {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text, #1e293b);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Progress card */
+.progressCard {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.35);
+  padding: 24px 28px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
 }
 
-.progressWrap {
-  margin-bottom: 20px;
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.progressTitle {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.progressPct {
+  color: white;
+  font-weight: 800;
+  font-size: 1.5rem;
 }
 
 .progressBar {
-  height: 12px;
-  background: rgba(255, 255, 255, 0.3);
+  height: 10px;
+  background: rgba(255,255,255,0.25);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, #4ade80, #22c55e);
   border-radius: 999px;
+  transition: width 0.7s ease-out;
+}
+
+.progressHints {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.82rem;
+}
+
+/* Bottom row */
+.bottomRow {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 20px;
+}
+
+.priorityCard,
+.recentCard {
+  background: var(--card-bg, white);
+  border: 2px solid var(--card-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.cardHeadingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.cardHeading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  margin-bottom: 16px;
+}
+
+.seeAll {
+  color: var(--primary, #2647e8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.seeAll:hover { text-decoration: underline; }
+
+/* Priority rows */
+.priorityRows { display: flex; flex-direction: column; gap: 14px; }
+
+.priorityRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.priorityLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: white;
+  min-width: 60px;
+  text-align: center;
+}
+
+.pri-high   { background: #ef4444; }
+.pri-medium { background: #f59e0b; }
+.pri-low    { background: #10b981; }
+
+.priorityBarBg {
+  flex: 1;
+  height: 8px;
+  background: var(--detail-bg, #f1f5f9);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.priorityBarFill {
+  height: 100%;
+  border-radius: 999px;
   transition: width 0.6s ease-out;
 }
 
-.progressLabel {
+.pfill-high   { background: #ef4444; }
+.pfill-medium { background: #f59e0b; }
+.pfill-low    { background: #10b981; }
+
+.priorityCnt {
+  font-weight: 700;
+  color: var(--text, #1e293b);
   font-size: 0.9rem;
+  min-width: 20px;
+  text-align: right;
+}
+
+/* Recent tasks */
+.noTasks {
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+  padding: 16px 0;
+}
+
+.inlineLink {
+  color: var(--primary, #2647e8);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  margin-left: 4px;
+  text-decoration: none;
 }
+.inlineLink:hover { text-decoration: underline; }
 
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.statCard {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.recentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  transition: transform 0.2s;
+  gap: 10px;
 }
 
-.statCard:hover {
-  transform: scale(1.03);
-}
-
-.statLabel {
-  color: var(--muted, #64748b);
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 4px;
-}
-
-.statValue {
-  color: var(--primary, #2647e8);
-  font-weight: 700;
-  font-size: 1.75rem;
-}
-
-.clearSection {
-  margin-top: 24px;
+.recentItem {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--detail-bg, #f8fafc);
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.recentItem:hover { background: var(--badge-bg, #dbeafe); }
+
+.recentDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-todo        { background: #94a3b8; }
+.dot-in_progress { background: #f59e0b; }
+.dot-done        { background: #22c55e; }
+
+.recentTitle {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text, #1e293b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.clearButton {
-  padding: 10px 20px;
-  background: var(--danger-bg, #fef2f2);
-  color: #b91c1c;
-  border: 2px solid #fecaca;
-  border-radius: 8px;
+.recentBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Quick actions */
+.quickActions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  text-decoration: none;
   font-weight: 600;
-  cursor: pointer;
+  font-size: 0.95rem;
   transition: all 0.2s;
 }
 
-.clearButton:hover {
-  background: #ef4444;
+.actionBtn svg { width: 18px; height: 18px; }
+
+.actionBtn.primary {
+  background: var(--primary, #2647e8);
   color: white;
-  border-color: #ef4444;
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(38, 71, 232, 0.25);
+}
+.actionBtn.primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
-.clearButton:focus-visible {
-  outline: 2px solid #b91c1c;
-  outline-offset: 2px;
+.actionBtn.secondary {
+  background: var(--card-bg, white);
+  color: var(--primary, #2647e8);
+  border: 2px solid var(--primary, #2647e8);
+}
+.actionBtn.secondary:hover {
+  background: var(--badge-bg, #dbeafe);
+  transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .statGrid { grid-template-columns: repeat(2, 1fr); }
+  .bottomRow { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .statGrid { grid-template-columns: repeat(2, 1fr); }
+  .greetHeading { font-size: 1.4rem; }
 }
 </style>

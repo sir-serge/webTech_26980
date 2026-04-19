@@ -1,70 +1,68 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { getTasks, createTask, updateTask, deleteTask } from '../services/api'
 
 export const useTasksStore = defineStore('tasks', () => {
   // State
-  const tasks = ref([])
+  const tasks   = ref([])
+  const loading = ref(false)
+  const error   = ref(null)
 
   // Getters
-  const completedTasks = computed(() => tasks.value.filter(t => t.completed))
-  const todoTasks = computed(() => tasks.value.filter(t => !t.completed))
-  const completedCount = computed(() => completedTasks.value.length)
-  const hasCompletedTasks = computed(() => completedCount.value > 0)
+  const todoTasks       = computed(() => tasks.value.filter(t => t.status === 'TODO'))
+  const inProgressTasks = computed(() => tasks.value.filter(t => t.status === 'IN_PROGRESS'))
+  const doneTasks       = computed(() => tasks.value.filter(t => t.status === 'DONE'))
 
-  const filteredTasks = computed(() => {
-    return (filter) => {
-      if (filter === 'completed') return completedTasks.value
-      if (filter === 'todo') return todoTasks.value
-      return tasks.value
-    }
-  })
+  function filteredTasks(filter) {
+    if (filter === 'TODO')        return todoTasks.value
+    if (filter === 'IN_PROGRESS') return inProgressTasks.value
+    if (filter === 'DONE')        return doneTasks.value
+    return tasks.value
+  }
 
   // Actions
-  function addTask(taskData) {
-    const newTask = {
-      name: taskData.name,
-      type: taskData.type,
-      urgency: taskData.urgency,
-      dueDate: taskData.dueDate,
-      dueTime: taskData.dueTime,
-      description: taskData.description,
-      completed: false,
-      createdAt: new Date().toISOString()
-    }
-    tasks.value.push(newTask)
-  }
-
-  function toggleComplete(index) {
-    if (index >= 0 && index < tasks.value.length) {
-      tasks.value[index].completed = !tasks.value[index].completed
+  async function fetchTasks() {
+    loading.value = true
+    error.value   = null
+    try {
+      const res   = await getTasks()
+      tasks.value = Array.isArray(res.data) ? res.data : []
+    } catch (e) {
+      error.value = e?.response?.data?.message || 'Failed to load tasks.'
+    } finally {
+      loading.value = false
     }
   }
 
-  function removeTask(index) {
-    if (index >= 0 && index < tasks.value.length) {
-      tasks.value.splice(index, 1)
-    }
+  async function addTask(taskData) {
+    const res = await createTask(taskData)
+    tasks.value.push(res.data)
+    return res.data
   }
 
-  function clearCompleted() {
-    tasks.value = tasks.value.filter(t => !t.completed)
+  async function editTask(id, taskData) {
+    const res = await updateTask(id, taskData)
+    const idx = tasks.value.findIndex(t => t.id === id)
+    if (idx !== -1) tasks.value[idx] = res.data
+    return res.data
   }
 
-  function getIndex(task) {
-    return tasks.value.findIndex(t => t === task)
+  async function removeTask(id) {
+    await deleteTask(id)
+    tasks.value = tasks.value.filter(t => t.id !== id)
   }
 
   return {
     tasks,
-    completedTasks,
+    loading,
+    error,
     todoTasks,
-    completedCount,
-    hasCompletedTasks,
+    inProgressTasks,
+    doneTasks,
     filteredTasks,
+    fetchTasks,
     addTask,
-    toggleComplete,
-    removeTask,
-    clearCompleted,
-    getIndex
+    editTask,
+    removeTask
   }
 })

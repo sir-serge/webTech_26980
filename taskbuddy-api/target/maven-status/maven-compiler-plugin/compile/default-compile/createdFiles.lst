@@ -1,0 +1,6 @@
+com\taskbuddy\service\TaskService.class
+com\taskbuddy\TaskbuddyApplication.class
+com\taskbuddy\controller\TaskController.class
+com\taskbuddy\config\CorsConfig.class
+com\taskbuddy\repository\TaskRepository.class
+com\taskbuddy\model\Task.class

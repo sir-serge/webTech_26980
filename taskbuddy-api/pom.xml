@@ -17,7 +17,7 @@
     <!-- ── Project coordinates ── -->
     <groupId>com.taskbuddy</groupId>
     <artifactId>taskbuddy-api</artifactId>
-    <version>0.0.1</version>
+    <version>'0.0.1'</version>
     <name>taskbuddy-api</name>
     <description>TaskBuddy REST API — Spring Boot + MongoDB</description>
 
@@ -39,11 +39,11 @@
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
 
-        <!-- Spring OpenAPI + Swagger UI for documenting REST endpoints -->
+        <!-- Lombok: eliminates boilerplate getters/setters/constructors -->
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.5.0</version>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Boot Test (JUnit 5 included) -->
